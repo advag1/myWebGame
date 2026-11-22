@@ -43,6 +43,10 @@ public class Game {
         return firstEncounterWon;
     }
 
+    public Enemy getCurrEnemy() {
+        return this.currEnemy;
+    }
+
     /**
      * Player hits the current enemy, a surviving enemy counterattacks for 10.
      *

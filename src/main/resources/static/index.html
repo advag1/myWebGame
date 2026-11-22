@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle Adventure</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Battle Adventure</h1>
+            <p id="encounter-title">שלב 1 מתוך 2</p>
+        </header>
+
+        <div class="arena">
+            <div class="card">
+                <h2>player</h2>
+                <p>חיים (HP): <span id="player-hp-text">100 / 100</span></p>
+                <div class="bar-bg"><div id="player-hp-bar" class="bar-fill hp-fill"></div></div>
+
+                <p>משאבים (Resource): <span id="player-res-text">5 / 10</span></p>
+                <div class="bar-bg"><div id="player-res-bar" class="bar-fill res-fill"></div></div>
+
+                <p>עוצמת תקיפה: <strong id="player-atk-text">10</strong></p>
+            </div>
+
+            <div class="card">
+                <h2 id="enemy-name">enemy1</h2>
+                <p>חיים (HP): <span id="enemy-hp-text">30 / 30</span></p>
+                <div class="bar-bg"><div id="enemy-hp-bar" class="bar-fill enemy-fill"></div></div>
+            </div>
+        </div>
+
+        <div id="actions-panel" class="panel">
+            <h3>בחר פעולה:</h3>
+            <div class="buttons">
+                <button onclick="sendAction('attack')">1. תקיפה (Attack)</button>
+                <button id="btn-special" onclick="sendAction('special')">2. מתקפה מיוחדת (3 משאבים, 15 נזק)</button>
+                <button onclick="sendAction('recover')">3. התאוששות (+3 משאבים)</button>
+                <button onclick="sendAction('defend')">4. הגנה (ספיגת 5 נזק ללא תקיפת נגד)</button>
+            </div>
+        </div>
+
+        <div id="reward-panel" class="panel hidden">
+            <h3>ניצחת בשלב 1! בחר פרס:</h3>
+            <div class="buttons">
+                <button onclick="sendAction('reward1')">1. התאוששות (RECOVERY) - שחזור 25 HP (עד 100)</button>
+                <button onclick="sendAction('reward2')">2. עוצמה (POWER) - העלאת תקיפה בסיסית ב-2</button>
+            </div>
+        </div>
+
+        <div id="gameover-panel" class="panel hidden">
+            <h3 id="gameover-message"></h3>
+            <button onclick="resetGame()">משחק חדש</button>
+        </div>
+
+        <div class="panel">
+            <h3>פלט מה-Java:</h3>
+            <pre id="battle-log" class="log-box"></pre>
+        </div>
+    </div>
+
+    <script>
+        async function sendAction(action) {
+            const response = await fetch("/api?action=" + action);
+            const data = await response.json();
+
+            document.getElementById("player-hp-text").textContent = `${data.playerHP} / ${data.playerMaxHP}`;
+            document.getElementById("player-hp-bar").style.width = `${(data.playerHP / data.playerMaxHP) * 100}%`;
+
+            document.getElementById("player-res-text").textContent = `${data.playerResource} / ${data.playerMaxResource}`;
+            document.getElementById("player-res-bar").style.width = `${(data.playerResource / data.playerMaxResource) * 100}%`;
+
+            document.getElementById("player-atk-text").textContent = data.playerAttack;
+
+            document.getElementById("enemy-name").textContent = data.enemyName;
+            document.getElementById("enemy-hp-text").textContent = `${data.enemyHP} / ${data.enemyMaxHP}`;
+            document.getElementById("enemy-hp-bar").style.width = `${(data.enemyHP / data.enemyMaxHP) * 100}%`;
+
+            document.getElementById("encounter-title").textContent =
+                data.enemyName === "enemy1" ? "שלב 1 מתוך 2" : "שלב 2 מתוך 2";
+
+            if (data.logs) {
+                const logBox = document.getElementById("battle-log");
+                logBox.textContent += data.logs;
+                logBox.scrollTop = logBox.scrollHeight;
+            }
+
+            const actionsPanel = document.getElementById("actions-panel");
+            const rewardPanel = document.getElementById("reward-panel");
+            const gameoverPanel = document.getElementById("gameover-panel");
+
+            if (data.isGameOver) {
+                actionsPanel.classList.add("hidden");
+                rewardPanel.classList.add("hidden");
+                gameoverPanel.classList.remove("hidden");
+                document.getElementById("gameover-message").textContent =
+                    data.playerLost ? "הפסדת במשחק! (game over, you lose)" : "ניצחת במשחק! (game over, you won!!)";
+            } else if (data.canClaimReward) {
+                actionsPanel.classList.add("hidden");
+                rewardPanel.classList.remove("hidden");
+                gameoverPanel.classList.add("hidden");
+            } else {
+                actionsPanel.classList.remove("hidden");
+                rewardPanel.classList.add("hidden");
+                gameoverPanel.classList.add("hidden");
+                document.getElementById("btn-special").disabled = !data.canSpecial;
+            }
+        }
+
+        function resetGame() {
+            document.getElementById("battle-log").textContent = "";
+            sendAction("new");
+        }
+
+        sendAction("state");
+    </script>
+</body>
+</html>

@@ -34,6 +34,10 @@ public abstract class Combatant {
         return this.HP;
     }
 
+    public String getName() {
+        return this.name;
+    }
+
     /**
      * Reduces HP by damage, never below 0.
      *
