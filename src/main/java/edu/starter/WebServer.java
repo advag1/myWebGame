@@ -13,14 +13,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class WebServer {
-    private static Game game;
+    private static final Map<String, Game> games = new ConcurrentHashMap<>();
 
     public static void main(String[] args) throws IOException {
-        startNewGame();
-
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
         server.createContext("/", WebServer::handleStaticFiles);
         server.createContext("/api", WebServer::handleApi);
@@ -29,13 +30,22 @@ public class WebServer {
         System.out.println("האתר פועל! פתחי בדפדפן את הכתובת: http://localhost:8080");
     }
 
-    private static String startNewGame() {
-        return runWithCapturedLogs(() -> {
-            System.out.println("=== Welcome to the Battle Adventure! ===");
-            game = new Game();
-            System.out.println("--- Encounter 1 vs Enemy 1 (30 HP) ---");
-            game.gameStatus();
-        });
+    private static Game createGameForId(String gameId, String profile, StringBuilder logOut) {
+        synchronized (WebServer.class) {
+            Player player = switch (profile.toLowerCase()) {
+                case "guardian" -> new Guardian();
+                case "striker" -> new Striker();
+                default -> new Player();
+            };
+            Game newGame = new Game(player);
+            games.put(gameId, newGame);
+            logOut.append(runWithCapturedLogs(() -> {
+                System.out.println("=== Welcome to the Battle Adventure! (ID: " + gameId + ", Profile: " + player.getName() + ") ===");
+                System.out.println("--- Encounter 1 vs Enemy 1 (30 HP) ---");
+                newGame.gameStatus();
+            }));
+            return newGame;
+        }
     }
 
     private static void handleStaticFiles(HttpExchange exchange) throws IOException {
@@ -44,7 +54,13 @@ public class WebServer {
             path = "/index.html";
         }
 
-        String contentType = path.endsWith(".css") ? "text/css; charset=UTF-8" : "text/html; charset=UTF-8";
+        String contentType = "text/html; charset=UTF-8";
+        if (path.endsWith(".css")) {
+            contentType = "text/css; charset=UTF-8";
+        } else if (path.endsWith(".js")) {
+            contentType = "application/javascript; charset=UTF-8";
+        }
+
         byte[] content = readStaticFile(path.substring(1));
 
         if (content == null) {
@@ -70,23 +86,32 @@ public class WebServer {
     }
 
     private static void handleApi(HttpExchange exchange) throws IOException {
-        String query = exchange.getRequestURI().getQuery();
-        String action = (query != null && query.startsWith("action=")) ? query.substring(7) : "state";
-        String logs = "";
+        Map<String, String> params = parseQuery(exchange.getRequestURI().getQuery());
+        String gameId = params.getOrDefault("gameId", "default");
+        String action = params.getOrDefault("action", "state");
+        String profile = params.getOrDefault("profile", "standard");
 
-        if ("new".equals(action)) {
-            logs = startNewGame();
+        StringBuilder logs = new StringBuilder();
+        Game game = games.get(gameId);
+
+        if (game == null || "new".equals(action)) {
+            game = createGameForId(gameId, profile, logs);
         } else {
-            logs = runWithCapturedLogs(() -> executeJavaAction(action));
+            final Game currentGame = game;
+            synchronized (currentGame) {
+                logs.append(runWithCapturedLogs(() -> executeJavaAction(currentGame, action)));
+            }
         }
 
         Player p = game.getPlayer();
         Enemy e = game.getCurrEnemy();
         int enemyMaxHP = "enemy1".equals(e.getName()) ? 30 : 45;
 
+        int playerMaxHP = (p instanceof Guardian) ? 130 : (p instanceof Striker ? 80 : 100);
+
         String json = "{"
                 + "\"playerHP\":" + p.getHP() + ","
-                + "\"playerMaxHP\":" + Combatant.MAX_HP + ","
+                + "\"playerMaxHP\":" + playerMaxHP + ","
                 + "\"playerResource\":" + p.getResource() + ","
                 + "\"playerMaxResource\":" + Player.MAX_RESOURCE + ","
                 + "\"playerAttack\":" + p.getAttackDamage() + ","
@@ -98,7 +123,7 @@ public class WebServer {
                 + "\"canSpecial\":" + game.canSpecial() + ","
                 + "\"isGameOver\":" + game.isGameOver() + ","
                 + "\"playerLost\":" + p.isHpIllegal() + ","
-                + "\"logs\":\"" + escapeJson(logs) + "\""
+                + "\"logs\":\"" + escapeJson(logs.toString()) + "\""
                 + "}";
 
         byte[] responseBytes = json.getBytes(StandardCharsets.UTF_8);
@@ -109,7 +134,7 @@ public class WebServer {
         }
     }
 
-    private static void executeJavaAction(String action) {
+    private static void executeJavaAction(Game game, String action) {
         switch (action) {
             case "attack":
                 if (!game.isGameOver() && !game.canClaimReward()) game.attack();
@@ -133,6 +158,18 @@ public class WebServer {
         if (game.isGameOver()) {
             game.showGameOver();
         }
+    }
+
+    private static Map<String, String> parseQuery(String query) {
+        Map<String, String> result = new HashMap<>();
+        if (query == null || query.isEmpty()) return result;
+        for (String pair : query.split("&")) {
+            String[] parts = pair.split("=", 2);
+            if (parts.length == 2) {
+                result.put(parts[0], parts[1]);
+            }
+        }
+        return result;
     }
 
     private static String runWithCapturedLogs(Runnable task) {

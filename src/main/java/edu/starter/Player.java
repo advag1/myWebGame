@@ -45,6 +45,10 @@ public class Player extends Combatant {
         return this.attackDamage;
     }
 
+    public int getDefendBlock() {
+        return 5;
+    }
+
     public boolean isRewardClaimed() {
         return this.rewardClaimed;
     }
@@ -59,7 +63,14 @@ public class Player extends Combatant {
      *       && isRewardClaimed()
      */
     public void receiveRecovery() {
-        heal(25);
+        receiveRecovery(MAX_HP);
+    }
+
+    /**
+     * Restores 25 HP, capped at a custom maxHp, without changing resource or attack.
+     */
+    protected void receiveRecovery(int maxHp) {
+        this.HP = Math.min(maxHp, this.HP + 25);
         this.rewardClaimed = true;
     }
 

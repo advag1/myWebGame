@@ -14,8 +14,12 @@ public class Game {
      * @post getPlayer() != null && !isFirstEncounterWon() && enemies are named enemy1, enemy2
      */
     public Game() {
+        this(new Player());
+    }
+
+    public Game(Player player) {
         Enemy.resetCount();
-        this.player = new Player();
+        this.player = player;
         this.enemy = new Enemy(30);
         this.enemy2 = new Enemy(45);
         this.currEnemy = this.enemy;
@@ -116,10 +120,13 @@ public class Game {
 
     /**
      * @pre !isGameOver()
-     * @post player HP == max(0, old HP - 5); no enemy counterattack
+     * @post player HP == max(0, old HP - (10 - block)); no enemy counterattack
      */
     public void defend() {
-        player.takeDamage(5);
+        int block = player.getDefendBlock();
+        int incomingDamage = Math.max(0, 10 - block);
+        player.takeDamage(incomingDamage);
+        System.out.println("player defends! Blocked " + block + " damage.");
         gameStatus();
     }
 
@@ -154,13 +161,13 @@ public class Game {
         Reward chosen = null;
 
         while (chosen == null) {
-            System.out.println("1. " + Reward.RECOVERY + " (Restore 25 HP, capped at 100)");
+            System.out.println("1. " + Reward.RECOVERY + " (Restore 25 HP, capped)");
             System.out.println("2. " + Reward.POWER + " (Permanently increase basic Attack by 2)");
             System.out.print("Select reward (1 or 2): ");
 
             int choice = ConsoleChoice.read(scanner, 1, 2);
             if (choice == -1 && !scanner.hasNextLine()) {
-                return false;   // EOF: do not start the second encounter
+                return false;   
             }
             if (choice == 1) {
                 chosen = Reward.RECOVERY;
