@@ -1,4 +1,4 @@
-let selectedProfile = "standard"; // ברירת מחדל
+let selectedProfile = "standard";
 const gameId = Math.random().toString(36).substring(2, 10);
 let prevPlayerHP = 100;
 let prevEnemyHP = 30;
@@ -9,6 +9,19 @@ function selectProfile(profile) {
     document.getElementById("profile-select-panel").classList.add("hidden");
     document.getElementById("game-container").classList.remove("hidden");
     document.getElementById("battle-log").textContent = "";
+
+    // החלפת דמות השחקן בזירה לפי הבחירה
+    document.getElementById("svg-player-standard").classList.toggle("hidden", profile !== "standard");
+    document.getElementById("svg-player-guardian").classList.toggle("hidden", profile !== "guardian");
+    document.getElementById("svg-player-striker").classList.toggle("hidden", profile !== "striker");
+
+    const titleMap = {
+        standard: "Standard (you)",
+        guardian: "Guardian (you)",
+        striker: "Striker (you)"
+    };
+    document.getElementById("player-name-text").textContent = titleMap[profile] || "Player (you)";
+
     prevPlayerHP = profile === "guardian" ? 130 : (profile === "striker" ? 80 : 100);
     prevEnemyHP = 30;
     sendAction("new");
@@ -26,7 +39,7 @@ function spawnFloatingText(targetBoxId, text, colorClass) {
 function triggerClassAnim(elementId, className, duration = 450) {
     const el = document.getElementById(elementId);
     el.classList.remove(className);
-    void el.offsetWidth; // איפוס אנימציה
+    void el.offsetWidth;
     el.classList.add(className);
     setTimeout(() => el.classList.remove(className), duration);
 }
@@ -43,7 +56,6 @@ function playBattleAnimations(action, data) {
             if (enemyDmg > 0) spawnFloatingText("enemy-box", "-" + enemyDmg, "dmg-red");
         }, 150);
 
-        // תקיפת נגד של האויב אם שרד
         if (data.enemyHP > 0 && playerDmg > 0) {
             setTimeout(() => {
                 triggerClassAnim("enemy-sprite", "lunge-left", 400);
@@ -107,7 +119,6 @@ async function sendAction(action) {
 
         playBattleAnimations(action, data);
 
-        // עדכון מדדי שחקן
         document.getElementById("player-hp-text").textContent = `${data.playerHP}/${data.playerMaxHP}`;
         document.getElementById("player-hp-bar").style.width = `${(data.playerHP / data.playerMaxHP) * 100}%`;
 
@@ -116,7 +127,6 @@ async function sendAction(action) {
 
         document.getElementById("player-atk-text").textContent = data.playerAttack;
 
-        // החלפת דמות אויב בין שלב 1 לשלב 2
         const isEnemy1 = data.enemyName === "enemy1";
         document.getElementById("svg-enemy1").classList.toggle("hidden", !isEnemy1);
         document.getElementById("svg-enemy2").classList.toggle("hidden", isEnemy1);
@@ -129,7 +139,6 @@ async function sendAction(action) {
         document.getElementById("encounter-badge").textContent =
             isEnemy1 ? "שלב 1 מתוך 2" : "שלב 2 מתוך 2";
 
-        // מצב תבוסה ויזואלי
         document.getElementById("player-sprite").classList.toggle("defeated", data.playerHP <= 0);
         document.getElementById("enemy-sprite").classList.toggle("defeated", data.enemyHP <= 0);
 
@@ -139,7 +148,6 @@ async function sendAction(action) {
             logBox.scrollTop = logBox.scrollHeight;
         }
 
-        // ניהול פאנלים
         const actionsPanel = document.getElementById("actions-panel");
         const rewardPanel = document.getElementById("reward-panel");
         const gameoverPanel = document.getElementById("gameover-panel");

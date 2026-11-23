@@ -12,6 +12,9 @@ public final class SimulationRunner {
         run("T1: RECOVERY FROM HP 90", new Game(90, 5, 10, 5, 45), "1\n1\n");
         run("T2: RECOVERY AT HP 100", new Game(100, 5, 10, 5, 45), "1\n1\n");
         run("T9: FINISHING ATTACK ON ENEMY 2", new Game(100, 5, 10, 5, 10), "1\n1\n1\n");
+        //for lesson 4
+        run("GUARDIAN SCENARIO", new Game(new Guardian()), "2\n1\n1\n2\n");
+        run("STRIKER SCENARIO", new Game(new Striker()), "2\n1\n1\n2\n");
     }
 
     private static void run(String title, Game game, String inputs) {
